@@ -10,31 +10,67 @@ function App() {
 
   const API = "http://localhost:5000/api/notes";
 
+  // Fetch Notes
   const fetchNotes = async () => {
-    const res = await axios.get(API);
-    setNotes(res.data);
+    try {
+      const res = await axios.get(API);
+      setNotes(res.data);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+    }
   };
 
   useEffect(() => {
     fetchNotes();
   }, []);
 
+  // Create Note
   const createNote = async () => {
-    if (!title || !content) return;
-    await axios.post(API, { title, content });
-    setTitle("");
-    setContent("");
-    fetchNotes();
+    if (!title.trim() || !content.trim()) {
+      alert("Please enter title and content");
+      return;
+    }
+
+    try {
+      const res = await axios.post(API, {
+        title,
+        content,
+        isPinned: false,
+      });
+
+      setNotes([...notes, res.data]); // instantly update UI
+      setTitle("");
+      setContent("");
+    } catch (error) {
+      console.error("Error creating note:", error);
+      alert("Failed to create note");
+    }
   };
 
+  // Delete Note
   const deleteNote = async (id) => {
-    await axios.delete(`${API}/${id}`);
-    fetchNotes();
+    try {
+      await axios.delete(`${API}/${id}`);
+      setNotes(notes.filter((note) => note._id !== id));
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    }
   };
 
-  const togglePin = async (id) => {
-    await axios.patch(`${API}/${id}/pin`);
-    fetchNotes();
+  // Toggle Pin (Using PUT - safer)
+  const togglePin = async (note) => {
+    try {
+      const res = await axios.put(`${API}/${note._id}`, {
+        ...note,
+        isPinned: !note.isPinned,
+      });
+
+      setNotes(
+        notes.map((n) => (n._id === note._id ? res.data : n))
+      );
+    } catch (error) {
+      console.error("Error updating note:", error);
+    }
   };
 
   return (
@@ -74,8 +110,12 @@ function App() {
               </div>
               <p>{note.content}</p>
               <div className="note-buttons">
-                <button onClick={() => togglePin(note._id)}>Pin</button>
-                <button onClick={() => deleteNote(note._id)}>Delete</button>
+                <button onClick={() => togglePin(note)}>
+                  {note.isPinned ? "Unpin" : "Pin"}
+                </button>
+                <button onClick={() => deleteNote(note._id)}>
+                  Delete
+                </button>
               </div>
             </div>
           ))}
